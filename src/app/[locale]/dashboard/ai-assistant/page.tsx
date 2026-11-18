@@ -15,7 +15,6 @@ export default async function AIAssistantPage({ params }: { params: Promise<{ lo
     products,
     inventory,
     customers,
-    payments,
     deliveries,
   ] = await Promise.all([
     prisma.product.count({ where: { tenantId: session.user.tenantId, isActive: true } }),
@@ -24,11 +23,6 @@ export default async function AIAssistantPage({ params }: { params: Promise<{ lo
       include: { product: true },
     }),
     prisma.customer.findMany({ where: { tenantId: session.user.tenantId, isActive: true } }),
-    prisma.payment.findMany({
-      where: { tenantId: session.user.tenantId },
-      orderBy: { createdAt: "desc" },
-      take: 10,
-    }),
     prisma.delivery.findMany({
       where: { tenantId: session.user.tenantId },
       orderBy: { createdAt: "desc" },
@@ -37,9 +31,15 @@ export default async function AIAssistantPage({ params }: { params: Promise<{ lo
     }),
   ]);
 
-  const outstanding = payments
-    .filter((p: any) => p.status === "PENDING" || p.status === "PARTIAL")
-    .reduce((sum: number, p: any) => sum + (p.amount?.toNumber?.() || 0), 0);
+  // Same as the dashboard: everything billed minus everything paid.
+  const [billed, paid] = await Promise.all([
+    prisma.delivery.aggregate({
+      where: { tenantId: session.user.tenantId, status: { not: "CANCELLED" } },
+      _sum: { totalAmount: true },
+    }),
+    prisma.payment.aggregate({ where: { tenantId: session.user.tenantId }, _sum: { amount: true } }),
+  ]);
+  const outstanding = (billed._sum.totalAmount?.toNumber() || 0) - (paid._sum.amount?.toNumber() || 0);
 
   const lowStock = inventory.filter((item: any) => {
     const reorder = item.product.reorderLevel?.toNumber() || 0;
