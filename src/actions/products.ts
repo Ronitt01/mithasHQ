@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/db/prisma";
+import { assertTenant } from "@/lib/auth";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 
@@ -17,6 +18,7 @@ const productSchema = z.object({
 });
 
 export async function getProducts(tenantId: string) {
+  await assertTenant(tenantId);
   return prisma.product.findMany({
     where: { tenantId, isActive: true },
     include: { category: true },
@@ -25,6 +27,7 @@ export async function getProducts(tenantId: string) {
 }
 
 export async function getCategories(tenantId: string) {
+  await assertTenant(tenantId);
   return prisma.category.findMany({
     where: { tenantId },
     orderBy: { name: "asc" },
@@ -32,6 +35,7 @@ export async function getCategories(tenantId: string) {
 }
 
 export async function createProduct(tenantId: string, data: z.infer<typeof productSchema>) {
+  await assertTenant(tenantId);
   const parsed = productSchema.parse(data);
   const product = await prisma.product.create({
     data: { ...parsed, tenantId },
@@ -41,6 +45,7 @@ export async function createProduct(tenantId: string, data: z.infer<typeof produ
 }
 
 export async function updateProduct(id: string, tenantId: string, data: Partial<z.infer<typeof productSchema>>) {
+  await assertTenant(tenantId);
   const product = await prisma.product.updateMany({
     where: { id, tenantId },
     data,
@@ -50,6 +55,7 @@ export async function updateProduct(id: string, tenantId: string, data: Partial<
 }
 
 export async function deleteProduct(id: string, tenantId: string) {
+  await assertTenant(tenantId);
   await prisma.product.updateMany({
     where: { id, tenantId },
     data: { isActive: false },
@@ -58,6 +64,7 @@ export async function deleteProduct(id: string, tenantId: string) {
 }
 
 export async function createCategory(tenantId: string, name: string) {
+  await assertTenant(tenantId);
   const category = await prisma.category.create({
     data: { name, tenantId },
   });

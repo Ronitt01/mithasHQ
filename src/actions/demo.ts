@@ -2,6 +2,7 @@
 
 import { prisma } from "@/db/prisma";
 import bcrypt from "bcryptjs";
+import { subDays } from "date-fns";
 
 const DEMO_PASSWORD = "demo123456";
 const DEMO_EMAIL = "demo@mithashq.com";
@@ -163,6 +164,30 @@ export async function createDemoData() {
         },
       });
     }
+
+    // 4 weeks of counter sales (STOCK_OUT) so the demand forecast has history.
+    // Deterministic (no randomness): weekends ~40% busier, small day-to-day variation.
+    const dailySales: [productIndex: number, base: number][] = [
+      [0, 3], [1, 4], [2, 3], [3, 30], [4, 5], [5, 8], [8, 80], [9, 60],
+    ];
+    const salesLogs = [];
+    for (let d = 1; d <= 28; d++) {
+      const date = subDays(new Date(), d);
+      const weekend = date.getDay() === 0 || date.getDay() === 6 ? 1.4 : 1;
+      for (const [i, base] of dailySales) {
+        salesLogs.push({
+          type: "STOCK_OUT" as const,
+          quantity: Math.round(base * weekend * (0.9 + ((d + i) % 5) * 0.05) * 10) / 10,
+          reason: "Counter sales",
+          date,
+          createdAt: date,
+          productId: products[i].id,
+          tenantId: tenant.id,
+          shopId: shop.id,
+        });
+      }
+    }
+    await prisma.stockLog.createMany({ data: salesLogs });
 
     // Customers
     const customers = await Promise.all([

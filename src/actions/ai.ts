@@ -1,10 +1,14 @@
 "use server";
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { auth } from "@/lib/auth";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 export async function askAI(question: string, context?: string) {
+  const session = await auth();
+  if (!session?.user) return { answer: "Please sign in to use the AI assistant." };
+
   try {
     if (!process.env.GEMINI_API_KEY) {
       return {
@@ -12,7 +16,7 @@ export async function askAI(question: string, context?: string) {
       };
     }
 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     const systemPrompt = `You are MithasAI, the business assistant for MithasHQ — an ERP for sweet shops, dairy businesses, and namkeen manufacturers in India. You help business owners make data-driven decisions about inventory, production, sales, and payments.
 

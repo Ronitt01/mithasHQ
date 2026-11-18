@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/db/prisma";
+import { assertTenant } from "@/lib/auth";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 
@@ -13,6 +14,7 @@ const stockMovementSchema = z.object({
 });
 
 export async function getInventory(tenantId: string) {
+  await assertTenant(tenantId);
   return prisma.inventory.findMany({
     where: { tenantId },
     include: { product: { include: { category: true } }, shop: true },
@@ -21,9 +23,10 @@ export async function getInventory(tenantId: string) {
 }
 
 export async function stockIn(tenantId: string, data: z.infer<typeof stockMovementSchema>) {
+  await assertTenant(tenantId);
   const parsed = stockMovementSchema.parse(data);
   const existing = await prisma.inventory.findUnique({
-    where: { productId_shopId: { productId: parsed.productId, shopId: parsed.shopId } },
+    where: { productId_shopId: { productId: parsed.productId, shopId: parsed.shopId }, tenantId },
   });
 
   if (existing) {
@@ -58,9 +61,10 @@ export async function stockIn(tenantId: string, data: z.infer<typeof stockMoveme
 }
 
 export async function stockOut(tenantId: string, data: z.infer<typeof stockMovementSchema>) {
+  await assertTenant(tenantId);
   const parsed = stockMovementSchema.parse(data);
   const existing = await prisma.inventory.findUnique({
-    where: { productId_shopId: { productId: parsed.productId, shopId: parsed.shopId } },
+    where: { productId_shopId: { productId: parsed.productId, shopId: parsed.shopId }, tenantId },
   });
 
   if (!existing) throw new Error("No inventory found for this product");
@@ -86,6 +90,7 @@ export async function stockOut(tenantId: string, data: z.infer<typeof stockMovem
 }
 
 export async function getLowStock(tenantId: string) {
+  await assertTenant(tenantId);
   const inventory = await prisma.inventory.findMany({
     where: { tenantId },
     include: { product: true },
@@ -97,6 +102,7 @@ export async function getLowStock(tenantId: string) {
 }
 
 export async function getStockLogs(tenantId: string, limit = 50) {
+  await assertTenant(tenantId);
   return prisma.stockLog.findMany({
     where: { tenantId },
     include: { product: true, shop: true },

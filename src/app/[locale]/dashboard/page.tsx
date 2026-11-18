@@ -40,10 +40,15 @@ async function getDashboardData(tenantId: string) {
       where: { tenantId, date: { gte: lastWeek } },
       _sum: { totalAmount: true },
     }),
-    prisma.payment.aggregate({
-      where: { tenantId, status: { in: ["PENDING", "PARTIAL"] } },
-      _sum: { amount: true },
-    }),
+    // Outstanding = everything billed minus everything paid. (Summing PENDING/PARTIAL
+    // payment rows gave the amount already paid, not the amount still owed.)
+    Promise.all([
+      prisma.delivery.aggregate({
+        where: { tenantId, status: { not: "CANCELLED" } },
+        _sum: { totalAmount: true },
+      }),
+      prisma.payment.aggregate({ where: { tenantId }, _sum: { amount: true } }),
+    ]),
     prisma.productionBatch.count({
       where: { tenantId, status: "COMPLETED", plannedDate: { gte: lastWeek } },
     }),
@@ -61,7 +66,9 @@ async function getDashboardData(tenantId: string) {
     totalCustomers,
     totalDeliveries,
     revenue: totalRevenue._sum.totalAmount?.toNumber() || 0,
-    outstanding: totalOutstanding._sum.amount?.toNumber() || 0,
+    outstanding:
+      (totalOutstanding[0]._sum.totalAmount?.toNumber() || 0) -
+      (totalOutstanding[1]._sum.amount?.toNumber() || 0),
     completedBatches,
   };
 }

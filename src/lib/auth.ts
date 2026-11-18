@@ -92,3 +92,11 @@ declare module "next-auth" {
     tenantId: string | null;
   }
 }
+
+// Server actions are public HTTP endpoints: never trust a tenantId sent by the client.
+export async function assertTenant(tenantId: string) {
+  const session = await auth();
+  if (!session?.user?.tenantId || session.user.tenantId !== tenantId) {
+    throw new Error("Unauthorized");
+  }
+}
