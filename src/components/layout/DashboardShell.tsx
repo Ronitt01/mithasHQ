@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import {
   LayoutDashboard,
   Package,
@@ -55,7 +55,8 @@ export function DashboardShell({ children, user }: DashboardShellProps) {
   const pathname = usePathname();
   const t = useTranslations();
 
-  const locale = pathname.split('/')[1] || 'en';
+  // The default locale has no URL prefix ("as-needed"), so read it from next-intl, not the path.
+  const locale = useLocale();
 
   return (
     <div className="flex h-screen bg-[#FFF8F0]">

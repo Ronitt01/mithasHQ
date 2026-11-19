@@ -30,7 +30,9 @@ export function LanguageSwitcher() {
   }, []);
 
   function switchLocale(newLocale: string) {
-    const newPath = pathname.replace(`/${locale}`, `/${newLocale}`);
+    // English URLs have no prefix, so strip whichever locale is there and add the new one.
+    const rest = pathname.replace(new RegExp(`^/(${locales.join("|")})(?=/|$)`), "");
+    const newPath = `/${newLocale}${rest}`;
     router.push(newPath);
     setOpen(false);
   }
